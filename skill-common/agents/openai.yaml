@@ -1,0 +1,4 @@
+interface:
+  display_name: "技能公共规范"
+  short_description: "统一技能的中文、职责路由、依赖去重与持续进化规范"
+  default_prompt: "使用 $skill-common 检查目标技能是否遵循基础规范，并基于真实执行证据去重、复盘和安全进化。"

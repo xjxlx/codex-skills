@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Normalize"
+  short_description: "检测并修正 Java/Kotlin 成员命名与注释"
+  default_prompt: "使用 $code-normalize 检查并规范这个类的成员命名，同时补充类注释和关键成员注释。"

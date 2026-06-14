@@ -1,0 +1,7 @@
+.DS_Store
+__pycache__/
+*.pyc
+.hashes.json
+.github-published
+.allowlist
+.idea/

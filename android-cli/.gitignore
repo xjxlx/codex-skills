@@ -1,0 +1,9 @@
+.hashes.json
+.github-published
+.allowlist
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+*.swp
+*.swo
