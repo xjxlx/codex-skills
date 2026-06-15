@@ -5,6 +5,17 @@
 - 单独仓库：`codex-skill-{skill-name}`（如 `codex-skill-code-analyzer`）
 - 统一仓库：`codex-skills`（所有 skill 在子目录中）
 
+## 调用时自动检测
+
+每次调用 `$github-manager` 时先运行：
+
+```bash
+scripts/check_and_publish.sh
+```
+
+脚本检测包括 `github-manager` 自身在内的全部个人 skill。任一 hash 发生变化时调用
+`publish_unified.sh`；全部无变化时不创建提交、不执行发布。
+
 ## 首次发布流程
 
 ```

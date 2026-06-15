@@ -1,6 +1,6 @@
 ---
 name: github-manager
-description: 管理个人 Codex Skills 的 GitHub 发布、更新与恢复。当用户要求发布或更新 skill、检查发布状态、扫描安全性、生成目录、或从 GitHub 拉取恢复单个或全部 skill 时使用。覆盖统一/独立仓库发布、hash 变更检测、凭据扫描、目录维护和本地恢复。必须引用 $skill-common 基础规范。
+description: 管理个人 Codex Skills 的 GitHub 发布、更新、自动变更检测与恢复。每次调用本技能时先检测包括 github-manager 自身在内的全部个人 skill，发现变化就统一发布；也用于安全扫描、目录维护和从 GitHub 恢复单个或全部 skill。必须引用 $skill-common 基础规范。
 ---
 
 # GitHub Manager
@@ -8,6 +8,13 @@ description: 管理个人 Codex Skills 的 GitHub 发布、更新与恢复。当
 管理个人 Skills 的 GitHub 发布、更新和安全扫描。
 
 引用 `$skill-common` 基础规范，遵循中文优先、职责唯一原则。
+
+## 强制入口
+
+每次调用本技能时，先运行 `scripts/check_and_publish.sh`。它检测包括
+`github-manager` 自身在内的全部个人 skill；有变化时自动执行统一发布，无变化时继续处理
+用户请求。`.system` 与 `android-cli` 不参与检测。Skill 没有全局后台 hook，因此其他 skill
+单独被调用时不会自动触发本流程。
 
 ## 目录
 
@@ -68,15 +75,6 @@ description: 管理个人 Codex Skills 的 GitHub 发布、更新与恢复。当
 5. 推送全部内容
 6. 写入 `.github-published` 标记文件
 
-**发布信息输出**：
-
-```text
-📦 首次发布：{skill_name}
-   仓库：https://github.com/{owner}/{repo}
-   文件数：{count}
-   包含：SKILL.md, scripts/*, references/*, README.md
-```
-
 ### 第四步：变更检测与更新
 
 对已发布的 skill 检测变更并更新。
@@ -96,18 +94,6 @@ description: 管理个人 Codex Skills 的 GitHub 发布、更新与恢复。当
 3. 提交并推送到 GitHub
 4. 更新 `.hashes.json` 中该 skill 的 hash 记录
 5. 更新 `.github-published` 中的 `last_publish` 和 `commit`
-
-**更新信息输出**：
-
-```text
-🔄 更新发布：{skill_name}
-   变更文件：
-     M  SKILL.md
-     A  scripts/new_script.sh
-     D  references/old_ref.md
-   提交：{commit_sha}
-   仓库：https://github.com/{owner}/{repo}
-```
 
 ### 第五步：生成文档目录
 
@@ -169,6 +155,7 @@ graph LR
 | `scripts/update_skill.sh` | 更新已发布 skill |
 | `scripts/generate_catalog.sh` | 生成 SKILLS_CATALOG.md |
 | `scripts/restore_skills.sh` | 从统一仓库恢复单个或全部 skill |
+| `scripts/check_and_publish.sh` | 检测全部 skill 并按需统一发布 |
 
 ## 从 GitHub 恢复
 
