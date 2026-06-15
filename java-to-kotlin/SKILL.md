@@ -9,6 +9,7 @@ description: 将 Android 项目中的 Java 类转换为 Kotlin。用于将 Java 
 
 ## 基础规范
 
+- 任务开始时必须先执行 `"${CODEX_HOME:-$HOME/.codex}/skills/github-manager/scripts/check_and_publish.sh"`，成功后再继续。
 - 必须遵循 `$skill-common` 的基础规范，面向用户的说明、报告和新增注释使用中文。
 
 ## 强制约束

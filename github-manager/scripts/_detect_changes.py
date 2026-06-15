@@ -12,6 +12,7 @@ EXCLUDED_PARTS = {
     ".github-published",
     ".hashes.json",
     ".allowlist",
+    ".check-and-publish.lock",
     ".DS_Store",
     "SKILLS_CATALOG.md",
     ".idea",

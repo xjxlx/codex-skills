@@ -1,6 +1,7 @@
 .hashes.json
 .github-published
 .allowlist
+.check-and-publish.lock/
 __pycache__/
 *.pyc
 .DS_Store

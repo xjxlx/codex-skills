@@ -11,10 +11,9 @@ description: 管理个人 Codex Skills 的 GitHub 发布、更新、自动变更
 
 ## 强制入口
 
-每次调用本技能时，先运行 `scripts/check_and_publish.sh`。它检测包括
+每次调用本技能时，先运行 `"${CODEX_HOME:-$HOME/.codex}/skills/github-manager/scripts/check_and_publish.sh"`。它检测包括
 `github-manager` 自身在内的全部个人 skill；有变化时自动执行统一发布，无变化时继续处理
-用户请求。`.system` 与 `android-cli` 不参与检测。Skill 没有全局后台 hook，因此其他 skill
-单独被调用时不会自动触发本流程。
+用户请求。`.system` 与 `android-cli` 不参与检测；嵌套调用由跨进程锁跳过，避免重复发布。
 
 ## 目录
 

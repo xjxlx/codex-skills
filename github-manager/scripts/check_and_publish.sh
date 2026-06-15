@@ -9,6 +9,7 @@ SKILLS_ROOT="$HOME/.codex/skills"
 REPO_DIR="$SCRIPT_DIR/../codex-skills"
 REPO_NAME="codex-skills"
 HASHES_FILE="$SCRIPT_DIR/../.hashes.json"
+LOCK_DIR="$SCRIPT_DIR/../.check-and-publish.lock"
 EXCLUDE=(".system" "android-cli")
 
 while [[ $# -gt 0 ]]; do
@@ -21,6 +22,28 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -d "$SKILLS_ROOT" ]] || { echo "Skills 目录不存在: $SKILLS_ROOT" >&2; exit 2; }
+
+acquire_lock() {
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    printf '%s\n' "$$" > "$LOCK_DIR/pid"
+    trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
+    return 0
+  fi
+
+  lock_pid=""
+  [[ -f "$LOCK_DIR/pid" ]] && lock_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+  if [[ "$lock_pid" =~ ^[0-9]+$ ]] && kill -0 "$lock_pid" 2>/dev/null; then
+    echo "Skill 变更检测已在进行，本次嵌套调用跳过。"
+    exit 0
+  fi
+
+  rm -rf "$LOCK_DIR"
+  mkdir "$LOCK_DIR"
+  printf '%s\n' "$$" > "$LOCK_DIR/pid"
+  trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
+}
+
+acquire_lock
 
 is_excluded() {
   local candidate="$1"

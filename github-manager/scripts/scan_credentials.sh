@@ -21,6 +21,7 @@ EXCLUDES=(
   --exclude-dir='node_modules'
   --exclude-dir='__pycache__'
   --exclude-dir='.idea'
+  --exclude-dir='.check-and-publish.lock'
   --exclude='*.class'
   --exclude='*.jar'
   --exclude='*.png'

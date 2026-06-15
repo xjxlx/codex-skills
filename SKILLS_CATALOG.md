@@ -1,6 +1,6 @@
 # 个人 Skills 目录
 
-> 自动生成于 2026-06-15 14:20:21，由 github-manager 维护
+> 自动生成于 2026-06-15 14:33:50，由 github-manager 维护
 > GitHub 账号：xjxlx
 
 ## 概览
@@ -11,7 +11,7 @@
 | [code-normalize](https://github.com/xjxlx/codex-skills/tree/main/code-normalize) | 检测并安全规范 Java、Kotlin 类中的成员变量命名，更新全部引用，补充缺失的类注释，并为关键成员添加作用说明。当用户要求检查或重构 bname、a... | skill-common | 已发布 | 2026-06-15 |
 | [github-manager](https://github.com/xjxlx/codex-skills/tree/main/github-manager) | 管理个人 Codex Skills 的 GitHub 发布、更新、自动变更检测与恢复。每次调用本技能时先检测包括 github-manager 自身在内的... | skill-common | 已发布 | 2026-06-15 |
 | [java-to-kotlin](https://github.com/xjxlx/codex-skills/tree/main/java-to-kotlin) | 将 Android 项目中的 Java 类转换为 Kotlin。用于将 Java 文件迁移到 Kotlin、用惯用 Kotlin 重写 Java 类、或现... | code-analyzer, code-normalize, skill-common | 已发布 | 2026-06-15 |
-| [skill-common](https://github.com/xjxlx/codex-skills/tree/main/skill-common) | 作为个人 Skill 的基础规范，统一中文输出、职责唯一路由、依赖去重和持续进化；同时基于真实执行记录、错误、遗漏与验证结果安全更新目标 Skill，并通... | 无 | 已发布 | 2026-06-15 |
+| [skill-common](https://github.com/xjxlx/codex-skills/tree/main/skill-common) | 作为个人 Skill 的强制基础规范，统一启动时变更检测与自动发布、中文输出、职责路由、依赖去重和持续进化。除明确声明例外的 Skill 外，每个个人 S... | 无 | 已发布 | 2026-06-15 |
 
 ## 依赖关系
 
@@ -57,7 +57,7 @@ graph LR
 - **目录名**：`github-manager`
 - **用途**：管理个人 Codex Skills 的 GitHub 发布、更新、自动变更检测与恢复。每次调用本技能时先检测包括 github-manager 自身在内的...
 - **依赖**：skill-common
-- **文件数**：23
+- **文件数**：24
 - **UI 元数据**：有 agents/openai.yaml
 - **路径**：`~/.codex/skills/github-manager/`
 - **仓库**：https://github.com/xjxlx/codex-skills/tree/main/github-manager
@@ -79,7 +79,7 @@ graph LR
 ### skill-common
 
 - **目录名**：`skill-common`
-- **用途**：作为个人 Skill 的基础规范，统一中文输出、职责唯一路由、依赖去重和持续进化；同时基于真实执行记录、错误、遗漏与验证结果安全更新目标 Skill，并通...
+- **用途**：作为个人 Skill 的强制基础规范，统一启动时变更检测与自动发布、中文输出、职责路由、依赖去重和持续进化。除明确声明例外的 Skill 外，每个个人 S...
 - **依赖**：无
 - **文件数**：5
 - **UI 元数据**：有 agents/openai.yaml

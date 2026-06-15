@@ -80,6 +80,7 @@ for skill_dir in "$SKILLS_ROOT"/*/; do
     --exclude='.github-published'
     --exclude='.hashes.json'
     --exclude='.allowlist'
+    --exclude='.check-and-publish.lock'
     --exclude='.DS_Store'
     --exclude='__pycache__'
   )
