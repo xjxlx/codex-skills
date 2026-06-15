@@ -219,6 +219,7 @@ codex-skills/
 - 发布前必须通过安全扫描，无例外
 - OpenAI、GitHub、Slack、AWS token 和私钥模式必须作为高危项拦截
 - 只有远端 push 成功后才允许更新 hash 和 `.github-published`
+- 发布前确认 `scripts/*.sh` 保持可执行权限
 - `.github-published` 标记文件不提交到 GitHub 仓库（加入 `.gitignore`）
 - `.hashes.json` 不提交到 skill 仓库（加入 `.gitignore`）
 

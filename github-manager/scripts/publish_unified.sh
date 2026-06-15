@@ -67,10 +67,8 @@ for skill_dir in "$SKILLS_ROOT"/*/; do
   [[ -f "$skill_dir/SKILL.md" ]] || continue
   MANAGED+=("$skill_name")
 
-  if "$SCRIPT_DIR/detect_changes.sh" "$skill_dir" "$HASHES_FILE" >/dev/null 2>&1 \
-      && [[ "$skill_name" != "github-manager" || ! -f "$UNIFIED_DIR/$skill_name/SKILL.md" ]]; then
-    :
-  elif [[ -d "$UNIFIED_DIR/$skill_name" ]]; then
+  if ! "$SCRIPT_DIR/detect_changes.sh" "$skill_dir" "$HASHES_FILE" >/dev/null 2>&1 \
+      && [[ -d "$UNIFIED_DIR/$skill_name" ]]; then
     NOCHANGE+=("$skill_name")
     continue
   fi
@@ -163,7 +161,9 @@ data.update({
 })
 path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 PYEOF
-  "$SCRIPT_DIR/save_hashes.sh" "$skill_dir" "$HASHES_FILE"
+done
+for skill_name in "${UPDATED[@]}"; do
+  "$SCRIPT_DIR/save_hashes.sh" "$SKILLS_ROOT/$skill_name" "$HASHES_FILE"
 done
 
 echo "发布完成: https://github.com/$REPO_FULL"
