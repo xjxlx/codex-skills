@@ -1,7 +1,7 @@
 interface:
   display_name: "GitHub Manager"
-  short_description: "管理 Skills 的 GitHub 发布与更新"
-  default_prompt: "Use $github-manager to publish my Codex skills to GitHub"
+  short_description: "管理 Skills 的 GitHub 发布、更新与恢复"
+  default_prompt: "Use $github-manager to publish or restore my Codex skills"
 
 policy:
   allow_implicit_invocation: false

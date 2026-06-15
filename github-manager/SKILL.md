@@ -1,6 +1,6 @@
 ---
 name: github-manager
-description: 管理个人 Codex Skills 的 GitHub 发布与更新。当用户要求发布 skill、更新 skill 到 GitHub、检查 skill 发布状态、扫描 skill 安全性、或生成 skill 文档目录时使用。覆盖以下场景：(1) 首次发布 skills 到公开 GitHub 仓库，(2) 基于 hash 检测变更并仅更新有改动的 skill，(3) 发布前安全扫描检测账号/密钥泄露，(4) 生成和维护 skill 目录文档。必须引用 $skill-common 基础规范。
+description: 管理个人 Codex Skills 的 GitHub 发布、更新与恢复。当用户要求发布或更新 skill、检查发布状态、扫描安全性、生成目录、或从 GitHub 拉取恢复单个或全部 skill 时使用。覆盖统一/独立仓库发布、hash 变更检测、凭据扫描、目录维护和本地恢复。必须引用 $skill-common 基础规范。
 ---
 
 # GitHub Manager
@@ -168,6 +168,28 @@ graph LR
 | `scripts/publish_skill.sh` | 首次发布 skill 到 GitHub |
 | `scripts/update_skill.sh` | 更新已发布 skill |
 | `scripts/generate_catalog.sh` | 生成 SKILLS_CATALOG.md |
+| `scripts/restore_skills.sh` | 从统一仓库恢复单个或全部 skill |
+
+## 从 GitHub 恢复
+
+使用 `scripts/restore_skills.sh` 从统一仓库恢复本地 skill：
+
+```bash
+# 恢复单个 skill
+scripts/restore_skills.sh --skill code-analyzer
+
+# 恢复全部个人 skill
+scripts/restore_skills.sh --all
+
+# 明确覆盖本地同名目录
+scripts/restore_skills.sh --all --force
+```
+
+默认仓库为 `xjxlx/codex-skills`，默认目标为 `${CODEX_HOME:-$HOME/.codex}/skills`。
+已有目录默认拒绝覆盖；只有用户明确要求时才使用 `--force`。`android-cli` 和 `.system`
+不属于个人恢复集合。
+
+本地 `github-manager` 也丢失时，使用统一仓库根 `README.md` 中的完整 Git 恢复命令。
 
 ## 仓库模式
 

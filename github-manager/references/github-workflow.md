@@ -30,6 +30,22 @@
 7. push 成功后保存新 hash
 ```
 
+## 恢复流程
+
+```
+1. 浅克隆统一仓库到临时目录
+2. 验证目标子目录存在 SKILL.md
+3. 默认拒绝覆盖本地同名目录
+4. 使用 --force 时先移动旧目录作为临时备份
+5. 完整复制目标 skill，成功后删除备份
+6. 删除临时仓库并提示重启 Codex
+```
+
+- 单个恢复：`scripts/restore_skills.sh --skill <name>`
+- 全部恢复：`scripts/restore_skills.sh --all`
+- 覆盖恢复：追加 `--force`
+- 自举恢复：本地 `github-manager` 缺失时，使用仓库根 README 中的 Git 命令
+
 ## 提交信息规范
 
 - 首次发布：`feat: initial release of {skill_name}`
