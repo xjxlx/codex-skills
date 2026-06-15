@@ -1,19 +1,19 @@
 ---
 name: github-manager
-description: 管理个人 Codex Skills 的 GitHub 发布、更新、自动变更检测与恢复。每次调用本技能时先检测包括 github-manager 自身在内的全部个人 skill，发现变化就统一发布；也用于安全扫描、目录维护和从 GitHub 恢复单个或全部 skill。必须引用 $skill-common 基础规范。
+description: 实现个人 Codex Skills 的变更检测、凭据扫描、GitHub 发布、目录维护和本地恢复。当用户要求检查发布状态、发布或更新 skill、扫描敏感信息、生成目录、或从 GitHub 恢复单个或全部 skill 时使用。遵循 $skill-common 基础规范。
 ---
 
 # GitHub Manager
 
-管理个人 Skills 的 GitHub 发布、更新和安全扫描。
+负责个人 Skills 的变更检测实现、凭据扫描、GitHub 发布、目录维护和本地恢复。
 
-引用 `$skill-common` 基础规范，遵循中文优先、职责唯一原则。
+遵循 `$skill-common`，不在本技能重复其通用启动、输出、路由和进化规则。
 
 ## 强制入口
 
-每次调用本技能时，先运行 `"${CODEX_HOME:-$HOME/.codex}/skills/github-manager/scripts/check_and_publish.sh"`。它检测包括
-`github-manager` 自身在内的全部个人 skill；有变化时自动执行统一发布，无变化时继续处理
-用户请求。`.system` 与 `android-cli` 不参与检测；嵌套调用由跨进程锁跳过，避免重复发布。
+按 `$skill-common` 要求，任务开始时执行
+`"${CODEX_HOME:-$HOME/.codex}/skills/github-manager/scripts/check_and_publish.sh"`。本技能只维护
+该入口的检测、锁和发布实现。
 
 ## 目录
 
@@ -233,4 +233,4 @@ codex-skills/
 
 ## 进化入口
 
-任务完成后调用 `$skill-common` 复盘，记录发布过程中的问题和改进点。
+任务完成后按 `$skill-common` 复盘本技能。

@@ -7,17 +7,17 @@
 
 ## 调用时自动检测
 
-每次调用 `$github-manager` 时先运行：
+各个人 Skill 按 `$skill-common` 的启动规则运行：
 
 ```bash
 scripts/check_and_publish.sh
 ```
 
-脚本检测包括 `github-manager` 自身在内的全部个人 skill。任一 hash 发生变化时调用
-`publish_unified.sh`；全部无变化时不创建提交、不执行发布。
+本 reference 只说明实现：脚本检测全部个人 skill，任一 hash 变化时调用
+`publish_unified.sh`，全部无变化时不创建提交。
 
 检测期间使用 `.check-and-publish.lock` 防止并发或嵌套调用重复发布；锁目录不参与 hash、
-安全扫描和仓库同步。`$skill-common` 修改并校验 Skill 后再次运行入口，发布本次新变化。
+安全扫描和仓库同步。
 
 ## 首次发布流程
 
