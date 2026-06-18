@@ -1,4 +1,4 @@
 interface:
   display_name: "Java to Kotlin Converter"
   short_description: "将 Java 类安全转换为 Kotlin"
-  default_prompt: "使用 $java-to-kotlin 将这个 Java 文件转换为 Kotlin，再调用 $code-normalize 规范转换结果和受影响调用方，最后完成编译验证。"
+  default_prompt: "使用 $java-to-kotlin 将这个 Java 文件转换为 Kotlin，再调用 $code-analyzer 完成命名规范化、注释补全、Bug 检测和受影响调用方校验，最后完成编译验证。"
