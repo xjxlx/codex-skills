@@ -1,245 +1,338 @@
 ---
 name: code-analyzer
-description: 为指定 Java、Kotlin 文件统一完成成员命名规范化、类与关键成员注释、方法逻辑梳理、详细中文方法注释、潜在 bug 检测和性能复杂度分析。适用于阅读代码、分析逻辑、代码审查、命名整理和注释补全；所有此类任务必须使用本技能。
+description: 为指定 Java、Kotlin 文件梳理方法逻辑，添加详细中文方法注释，检测潜在 bug 和性能复杂度问题，并调用 code-normalize 完成成员命名、类注释和关键成员注释规范化。适用于阅读代码、分析逻辑、添加方法注释和代码审查；所有此类任务必须使用本技能。
 ---
 
 # 代码分析器
 
-统一承担 Java、Kotlin 代码的结构规范化、逻辑分析和注释补全，避免分析与命名整理分裂到多个 Skill。
+分析代码文件的逻辑结构，添加结构化中文注释，检测潜在 bug。
 
 ## 强制约束
 
-- 任务开始时必须先执行 `"${CODEX_HOME:-$HOME/.codex}/skills/github-manager/scripts/check_and_publish.sh"`；成功后遵循 `$skill-common` 基础规范，使用中文输出说明、报告和代码注释。
-- 所有代码阅读、逻辑分析、方法注释、成员命名整理、类注释补全、关键成员注释补全和代码审查任务必须使用本技能，禁止拆分到通用能力或已废弃的旧 Skill。
-- 必须连续完成步骤 0 到步骤 8，并维护 `.codex/analysis/` 缓存；遇到困难先尝试解决，不得无故中止。
-- 修改命名时必须保护序列化、数据库、反射、EventBus、JNI、公共 API、JavaBean、DataBinding/ViewBinding、R8 keep 规则等外部契约。
-- 如果类中存在 `findViewById`、`findView` 或等价视图查找，且父类链已提供 ViewBinding 能力，必须优先改为 ViewBinding 访问；只有绑定链无法覆盖该视图时才保留旧写法并说明原因。
+- 必须遵循 `$skill-common` 的基础规范，所有面向用户的分析、报告和代码注释使用中文。
+- 所有代码阅读、逻辑分析、注释和代码审查任务必须使用本技能，禁止用通用能力或其他 Skill 替代。
+- 必须为每个方法添加准确的中文注释，并检测明显 Bug 与性能复杂度问题。
+- 本技能不得自行处理成员命名、类注释和关键成员注释；读取目标文件后必须先调用 `$code-normalize` 完成规范化。
+- 必须连续完成步骤 0 到步骤 8，并管理 `.codex/analysis/` 缓存；遇到困难应先尝试解决，不得无故中止。
 
 ## 职责路由
 
-- Java 转 Kotlin 请求必须交给 `$java-to-kotlin`；本技能不手动做语言迁移。
-- 转换后的命名规范化、类/成员注释、方法注释、Bug 检测和 ViewBinding 收敛仍由本技能承接。
-- 本技能已吸收原独立命名整理职责，后续不得再依赖额外的命名规范化 Skill。
+- Java 转 Kotlin 请求必须交给 `$java-to-kotlin`，本技能不得手动转换语言。
+- 代码规范化必须交给 `$code-normalize`，本技能不得复制其命名、外部契约和重命名流程。
+- `$code-normalize` 作为本技能的子流程运行时，不得反向重新调用 `$code-analyzer`。
 
 ## 分析缓存机制
 
-### 目的
+### 缓存的目的
 
-1. 锁定分析结果，降低同一文件多次分析的非确定性。
-2. 复用类摘要、方法说明、已发现 Bug 和复杂度结论，加快后续修改。
-3. 在上下文被压缩后继续复用磁盘缓存。
+1. **锁定分析结果** — 同一段代码多次分析可能产生不同结果（LLM 非确定性），缓存确保结果一致
+2. **加速后续操作** — 修改已分析过的类时，直接读取缓存摘要，无需重新全量分析
+3. **跨对话持久化** — 上下文 compact 后，缓存文件仍在磁盘上，新对话可直接加载
 
-### 位置
+### 缓存位置
 
-每个项目根目录下的 `.codex/analysis/`：
+每个项目根目录下的 `.codex/analysis/` 目录：
 
-```text
+```
 <project-root>/
 ├── .codex/analysis/
-│   ├── manifest.json
-│   └── <hash>_<ClassName>.json
+│   ├── manifest.json                    ← 全局索引
+│   └── <hash>_<ClassName>.json          ← 单个文件的分析缓存
 ├── app/
-└── build.gradle.kts
+├── build.gradle.kts
 ```
 
-### 缓存校验
+### 缓存文件格式
 
-- 使用 SHA-256 对源文件内容计算 hash。
-- hash 匹配则复用缓存；不匹配则重新分析并覆盖缓存。
-- manifest 不存在时视为首次分析并创建。
+**manifest.json** — 全局索引，记录所有已分析文件：
+
+```json
+{
+  "files": {
+    "app/src/main/java/com/example/MyClass.kt": {
+      "hash": "sha256值",
+      "cacheFile": "a1b2c3_MyClass.json",
+      "analyzedAt": "2026-06-13T10:30:00",
+      "annotationVersion": 1
+    }
+  }
+}
+```
+
+**单文件缓存** — `<hash>_<ClassName>.json`：
+
+```json
+{
+  "filePath": "app/src/main/java/com/example/MyClass.kt",
+  "hash": "sha256值",
+  "analyzedAt": "2026-06-13T10:30:00",
+  "classSummary": "护眼模式单例工具类，管理验证码弹窗和时长设置",
+  "designPattern": "双重检查锁单例",
+  "dependencies": ["GsyApplication", "DialogUtil", "ScreenUtil"],
+  "methods": [
+    {
+      "name": "setDialogView1",
+      "signature": "(Activity, TextView?, Int, OnClickListener?)",
+      "isPublic": true,
+      "summary": "初始化验证弹窗，配置数字键盘和时长选择器",
+      "params": {
+        "mContext": "当前 Activity 上下文",
+        "textView": "显示当前时长的 TextView",
+        "type": "1=设置密码，2=解锁",
+        "listener": "解锁成功回调"
+      },
+      "bugs": [
+        "不安全 as 转换可能导致 ClassCastException",
+        "saveList 直接索引访问可能越界"
+      ],
+      "complexity": []
+    }
+  ],
+  "openBugs": [
+    "单例持有 Activity 强引用，未在 onDestroy 中置空，内存泄漏"
+  ],
+  "complexityIssues": []
+}
+```
+
+### 缓存校验规则
+
+- 使用 SHA-256 对源文件内容计算 hash
+- hash 匹配 → 缓存有效，直接复用
+- hash 不匹配 → 缓存失效，重新分析并覆盖缓存
+- manifest.json 不存在 → 视为首次分析，创建目录和文件
 
 ## 工作流程
 
-> 所有步骤必须连续执行，中间不得暂停等待用户补充说明。
+> ⚠️ 重要：所有步骤必须连续执行，中间不得暂停或等待用户输入。从步骤 0 开始，逐步完成到步骤 8 后才能结束任务。
 
-0. 检查分析缓存。
-1. 读取目标文件并识别模块、类层次、公共 API、状态和热点路径。
-2. 做结构规范化：成员命名、类注释、关键成员注释、必要的 ViewBinding 收敛和受影响调用方更新。
-3. 逐方法分析功能、参数、返回值、副作用和状态变化。
-4. 检测潜在 bug、并发问题、Android 生命周期风险和性能复杂度问题。
-5. 写入方法注释、必要的行内注释和风险标记。
-6. 交叉验证命名、注释、契约兼容性和编译面。
-7. 生成或更新 `.codex/analysis/` 缓存。
-8. 按 `$skill-common` 复盘本技能。
+0. **检查分析缓存** — 读取 manifest.json，对比文件 hash，决定是否复用缓存
+1. **读取目标文件** — 理解整体结构
+2. **代码规范化** — 调用 `$code-normalize` 处理命名、类注释和关键成员注释
+3. **分析每个方法** — 从上到下分析功能、参数、返回值和副作用
+4. **检测潜在 bug** — 逐项检查常见问题模式
+5. **写入注释** — 使用 apply_patch 或等效方式添加
+6. **交叉验证** — 确认方法注释准确反映代码行为
+7. **生成/更新分析缓存** — 将分析结果写入 `.codex/analysis/` 缓存文件
+8. **技能进化** — 按 `$skill-common` 的证据门槛复盘本次执行
 
 ## 步骤 0：检查分析缓存
 
-执行流程：
+**这是加速后续分析的关键步骤。** 在读取源文件之前，先检查是否存在有效缓存。
 
-1. 向上查找 `build.gradle.kts` 或 `settings.gradle.kts` 确定项目根目录。
-2. 读取 `<项目根目录>/.codex/analysis/manifest.json`。
-3. 对比当前文件内容 hash 与 manifest 中记录。
-4. 命中有效缓存时加载缓存摘要，作为后续分析上下文。
+### 执行流程
 
-缓存有效时仍要继续步骤 1 到步骤 6，因为注释、命名或 ViewBinding 改造可能已被后续修改破坏。
+1. 确定项目根目录（向上查找 `build.gradle.kts` 或 `settings.gradle.kts`）
+2. 检查 `<项目根目录>/.codex/analysis/manifest.json` 是否存在
+3. 如果存在，读取 manifest，查找当前文件的缓存条目
+4. 如果找到条目，读取源文件并计算 SHA-256 hash
+5. 对比 hash：
+   - **匹配** → 缓存有效，加载缓存文件，记录缓存内容供后续步骤使用
+   - **不匹配** → 缓存失效，标记需要重新分析
+   - **未找到条目** → 首次分析，标记需要生成缓存
+
+### 缓存有效时的行为
+
+缓存有效时，**仍然执行步骤 1-6 的注释写入流程**（因为注释可能被意外删除），但可以：
+- 跳过深度分析，直接参考缓存中的方法摘要和 bug 列表
+- 将缓存内容作为上下文，加速理解
+- 如果源文件中已有完整注释且未被修改，可以跳过注释写入
+
+### 缓存无效时的行为
+
+按完整流程执行步骤 1-7，最后在步骤 7 中更新缓存。
+
+### 缓存目录初始化
+
+如果 `.codex/analysis/` 目录不存在，使用以下命令创建：
+
+```bash
+mkdir -p <项目根目录>/.codex/analysis
+```
 
 ## 步骤 1：读取目标文件
 
-至少确认以下内容：
+读取完整的代码文件，先获得整体印象：
+- 文件中有多少个类/对象
+- 类之间的关系（继承、组合、依赖）
+- 主要的 public API 是什么
+- 使用了哪些设计模式
+- 识别性能敏感路径：循环、集合操作、I/O 调用、数据查询
 
-- 文件包含多少个类、对象或内部类。
-- 继承链、接口、组合依赖和关键协作者。
-- 主要 public API、生命周期入口、回调入口和线程切换点。
-- 可能影响命名推断的 API 字段、资源 ID、UI 文案和调用方语义。
-- 可能影响 ViewBinding 改造的父类能力、`getBinding()`/`inflateBinding()` 模式和现有 binding 字段。
+> 如果步骤 0 加载了有效缓存，此步骤可以重点关注缓存中标记为有 bug 或复杂度问题的方法，而非逐行扫描。
 
-## 步骤 2：结构规范化
+## 步骤 2：代码规范化
 
-### 2.1 调用方与外部契约扫描
+调用 `$code-normalize` 处理目标文件及受影响调用方：
 
-必须先用 `rg` 扫描以下引用：
+- 规范不合规成员命名并保护序列化、数据库、反射和公共 API 契约。
+- 补充缺失的类注释和关键成员注释。
+- 完成旧名称扫描、编译和相关验证。
+- 作为本技能的子流程运行，不得反向调用 `$code-analyzer`。
 
-- Java/Kotlin 调用方、测试和 import。
-- JSON/数据库映射、反射字符串、JNI、注解和 keep 规则。
-- `findViewById`、`findView`、`ButterKnife`、旧 View 缓存字段和 binding 相关实现。
+规范化完成后重新读取目标文件，再基于最终名称和类结构执行方法分析。禁止在本技能中复制 `$code-normalize` 的命名、类注释、成员注释或外部契约规则。
 
-### 2.2 成员命名规范
+## 步骤 3：方法级别注释
 
-对每个成员先分类，再决定是否重命名：
+为每个方法（包括 private）添加 KDoc/JavaDoc 注释：
 
-- 实例属性统一为有明确语义的 `lowerCamelCase`。
-- Boolean 优先使用 `isXxx`、`hasXxx`、`canXxx`。
-- 常量使用 `UPPER_SNAKE_CASE`。
-- 集合、监听器、计时器、缓存值和跨生命周期状态必须体现业务语义。
-- 禁止保留 `m`、`str`、`obj`、`tmp`、`flag`、`data`、`info`、`a_b`、`bname` 这类含义不清的名称，除非外部契约无法迁移。
+### 普通方法
 
-推断新名称时按以下顺序取证：
+```kotlin
+/**
+ * 显示护眼模式验证弹窗
+ *
+ * 流程：
+ * 1. 从 GsyApplication 获取已设置的总时长，映射为可读文本
+ * 2. 根据屏幕方向选择横屏/竖屏布局，创建 DialogUtil 弹窗
+ * 3. 初始化所有视图引用，设置字体样式
+ * 4. 配置数字适配器（第一页）和时长选择适配器（第二页）
+ * 5. 注册点击事件：数字验证通过后切换到时长选择页
+ *
+ * @param mContext 当前 Activity 上下文
+ * @param textView 用于显示当前已设置时长的 TextView（可为空，为空时不更新）
+ * @param type 操作类型：1=设置密码，2=解锁
+ * @param listener 解锁成功后的回调监听器
+ */
+fun setDialogView1(mContext: Activity, textView: TextView?, type: Int, listener: View.OnClickListener?) {
+```
 
-1. 服务端字段文档、映射注解和数据库列。
-2. 资源 ID、UI 文案、getter/setter、方法参数和赋值来源。
-3. 调用方、下游使用场景和项目领域词汇。
+### 简单方法
 
-无法安全确定语义时，先保留原名并在报告中说明，而不是机械改大小写。
+如果方法逻辑极简（一行），可用单行注释：
+```kotlin
+/** 关闭护眼模式弹窗 */
+fun dismiss() { dialogUtil?.dismiss() }
+```
 
-### 2.3 外部契约保护
+对状态切换、持久化、计时器启停、页面跳转和回调转发等关键业务调用，在调用前添加简洁行内注释，说明调用原因或调用后的状态；不要只复述方法名，也不要求为显而易见的 getter、赋值和普通视图查找逐行注释。
 
-每次重命名前都必须检查：
+## 步骤 4：Bug 检测与复杂度分析
 
-- Gson、Fastjson、Jackson、Room、Realm、Parcelable、Serializable。
-- EventBus、依赖注入、第三方回调、JavaBean getter/setter。
-- JNI、反射、字符串常量、XML 绑定、Compose 稳定性 API。
-- 公共 SDK/API、二进制兼容性和 Java 调用方。
+**这是本技能的核心价值。** 在分析每个方法时，主动检测以下常见问题模式（包括 bug 和性能复杂度问题）：
 
-需要保留外部名称时，优先使用兼容注解或仅重命名私有后备字段；无法安全兼容时跳过并记录原因。
+### 检测清单
 
-### 2.4 类注释与关键成员注释
+#### 空安全问题
+- 链式调用 `getXxx().getYyy()` — 🔴 中间任一环节为 null 即 NPE
+- `getIntent().getXxxExtra()` 后未判空 — 🔴 Intent extra 可能不存在
+- `Activity`/`Fragment` 上下文在异步回调中使用 — 🔴 回调时可能已销毁
+- `synchronized` 块外访问可变共享状态 — 🟡 多线程竞态条件
+- 不安全的类型转换 `as` 而非 `as?` — 🔴 ClassCastException 运行时崩溃（Kotlin 中 `as` 不做空安全检查）
 
-如果缺失，必须补充：
+#### 逻辑错误
+- `switch/case` 缺少 break 导致 fall-through — 🔴 可能是遗漏
+- 循环中修改集合（增删元素） — 🔴 ConcurrentModificationException
+- 整数溢出风险（大数运算） — 🟡 int 相乘可能溢出
+- 除法前未检查除数为零 — 🔴 ArithmeticException
+- 资源未关闭 — 🔴 资源泄漏
 
-- 类注释：职责、重要状态、关键协作者、生命周期限制。
-- 关键成员注释：计时器、Job、订阅、监听器、Dialog、缓存值、跨线程共享状态、带单位或特殊值的字段。
+#### Android 特定
+- 非 UI 线程更新 View — 🔴 崩溃
+- Handler 泄漏 Activity 引用 — 🔴 内存泄漏
+- 注册监听器但未在 onDestroy 中取消 — 🟡 内存泄漏
+- 单例持有 Activity 引用 — 🔴 Activity 无法被回收
+- Adapter 成员变量持有 View/LayoutParams 实例并在 onBindViewHolder 中共享赋值 — 🔴 RecyclerView 复用时所有 View 共享同一对象，布局参数互相覆盖
+- onBindViewHolder 闭包中直接捕获 position 而非使用 adapterPosition/absoluteAdapterPosition — 🟡 列表增删后点击事件指向错误位置
 
-禁止添加只复述字段名和类型的空洞注释。
+#### 并发与线程
+- 非线程安全的单例实现 — 🔴 多实例
+- volatile 字段被复合操作使用（如 i++） — 🟡 原子性问题
+- RxJava 订阅未在生命周期结束时取消 — 🔴 内存泄漏
 
-### 2.5 ViewBinding 收敛
+#### 代码质量
+- 同一段逻辑重复出现 3 次以上 — 🟡 应提取为私有方法，降低维护成本
+- 私有方法中重复的多行重置/清理逻辑 — 🟡 提取为辅助方法（如 resetClickList）
+- Kotlin/Java 混合项目的包路径包含 `new`、`class` 等 Java 保留关键字 — 🔴 Kotlin 源码可能可通过转义使用，但 Java 调用方无法正常 import 或使用全限定名。应改用 `v2`、`newmode` 等合法包段，并扫描全部跨语言调用方。
+- 跨 Activity 生命周期运行的循环计时器仅通过弱引用保存当前 Activity — 🟡 Activity 可能已 finish 但尚未被回收，弱引用仍非空，导致后续跳转被 `isFinishing` 拦截且没有兜底。应同时保存 application context，并在 Activity 无效时使用 `FLAG_ACTIVITY_NEW_TASK` 继续流程。
 
-当类中存在视图查找逻辑时，必须检查父类链是否已经提供：
+#### 性能与复杂度问题
 
-- `BaseActivity<T : ViewBinding>`、`BaseFragment<T : ViewBinding>` 或等价泛型基类。
-- `binding`、`mBinding`、`viewBinding` 等已初始化字段。
-- `getBinding()`、`createBinding()`、`inflateBinding()` 或等价模板方法。
+分析目标方法及其直接调用路径，检查嵌套遍历与重复查找/排序、循环内 I/O 或主线程阻塞，以及全量刷新和绑定/绘制阶段重复分配等 Android 热路径开销。
 
-若父类或当前类已具备 ViewBinding 能力：
+只有输入规模和调用频率足以产生实际影响时才使用 `⚠️ [性能问题: 类型]` 标注，并说明当前复杂度或开销、具体优化方式及优化后收益；可能改变顺序、对象身份、缓存一致性或业务语义时增加 `[需评估]`。
 
-1. 将 `findViewById`/`findView` 结果改为 binding 属性访问。
-2. 删除仅为缓存 View 引用而存在的冗余字段。
-3. 更新初始化逻辑、点击绑定和空安全写法。
-4. 仅在父类协议要求时保留必要的 binding 获取方法。
+### Bug 标注格式
 
-若不具备 ViewBinding 能力：
+在方法注释的最顶部，使用醒目的标记：
 
-- 保留视图查找写法，但要修正命名、空安全和复用方式。
-- 在报告中说明未迁移原因，例如工具类、Adapter、第三方 View 容器或基类不支持。
+```kotlin
+/**
+ * ⚠️ [潜在Bug: NPE风险] context 可能为 null，但后续未做空检查，
+ *    若 Activity 已销毁时调用此方法将导致空指针异常。建议增加 context?.let {} 保护。
+ *
+ * 显示护眼模式验证弹窗
+ * ...
+ */
+```
 
-结构规范化完成后，必须重新读取目标文件，再进入方法分析。
+Bug 标注规则：
+- 放在注释的**第一行**，确保最先被看到
+- 使用 `⚠️ [潜在Bug: 类型]` 格式
+- 紧跟一行**具体描述**：哪里有问题、什么条件下触发、可能的后果
+- 如果可能，给出**修复建议**
 
-## 步骤 3：方法级分析与注释
+## 步骤 5：写入方法注释
 
-必须为每个方法补充准确的 KDoc/JavaDoc，包括 private 方法。内容至少覆盖：
-
-- 方法职责和关键流程。
-- 关键参数的业务含义。
-- 返回值、回调、副作用和状态变化。
-- 非显而易见的线程、生命周期或数据依赖。
-
-逻辑极简的方法可写成单行注释；状态切换、持久化、计时器启停、页面跳转、回调转发等关键调用前应补简洁行内注释。
-
-## 步骤 4：Bug 与复杂度分析
-
-逐方法检查以下问题模式，并只在有证据时标注：
-
-### 空安全与类型安全
-
-- 链式调用中的中间对象可能为 null。
-- `Intent`、`Bundle`、`arguments`、Map 取值后直接使用。
-- Kotlin `as` 强转、不安全集合索引和越界访问。
-- 异步回调中使用已销毁的 `Activity`、`Fragment` 或 `View`。
-
-### 逻辑与资源问题
-
-- `switch/case` 漏 `break`、除零、整数溢出、循环中改集合、资源未关闭。
-- 关键状态在多处重复重置或清理，适合提炼私有方法。
-- 包路径使用 Java 保留关键字，导致 Java 调用方无法 import。
-
-### Android 生命周期与 UI
-
-- 非 UI 线程更新 View、Handler/Runnable/Timer 泄漏、监听器未取消、单例持有 Activity。
-- Adapter 共享 `LayoutParams`、在 `onBindViewHolder` 中直接捕获 `position`。
-- `findViewById` 已可被 ViewBinding 替代却仍手写缓存逻辑。
-- 仅用弱引用保存 Activity，但后续跳转缺少 application context 兜底。
-
-### 并发与线程
-
-- 非线程安全单例、复合操作的原子性问题、锁外共享状态访问。
-- RxJava、协程、Flow、LiveData 订阅未在生命周期结束时取消。
-
-### 性能与复杂度
-
-- 嵌套遍历、循环内 I/O、主线程阻塞、重复排序/查找。
-- RecyclerView 绑定阶段重复分配对象、全量刷新和无必要重算。
-
-只有当输入规模和调用频率足以造成实际影响时，才标注 `⚠️ [性能问题: 类型]`，并说明原因、优化方式和可能收益。
-
-## 步骤 5：写入注释与标记
-
-- 使用 `apply_patch` 写入注释和必要的结构调整。
-- 对有风险的方法，将 `⚠️ [潜在Bug: 类型]` 放在方法注释第一行，并写明触发条件、后果和修复方向。
-- 大文件按 public 方法、private 方法、行内注释的顺序分批处理，避免遗漏。
+使用 apply_patch 将注释写入文件。对于大文件（>300 行），按以下顺序分批处理：
+1. 先处理 public 方法的注释
+2. 再处理 private 方法的注释
+3. 最后补充关键业务调用前的必要行内注释
+4. 交叉检查是否有遗漏的方法
 
 ## 步骤 6：交叉验证
 
-至少确认：
+写入注释后，重新读取文件验证：
+- 注释是否与代码行为一致
+- 是否有遗漏的方法未加注释
+- Bug 标注是否准确（不要误报）
+- 注释是否干扰代码的可读性
+- `$code-normalize` 生成的类注释和成员注释是否仍然完整
 
-- 命名、类注释、成员注释和方法注释与代码行为一致。
-- 旧名称已被替换或被兼容映射保护。
-- ViewBinding 改造没有破坏父类协议、初始化时机和空安全。
-- Bug 标注不过度误报，复杂度标注具有实际意义。
-- 受影响模块按仓库可用命令完成最小编译验证；无法验证时要明确说明。
+## 步骤 7：生成/更新分析缓存
 
-## 步骤 7：生成或更新缓存
+**分析完成后必须执行此步骤。** 将分析结果写入缓存文件，供后续修改操作复用。
 
-缓存内容至少包含：
+### 执行流程
 
-- `classSummary`
-- `designPattern`
-- `dependencies`
-- `methods`
-- `openBugs`
-- `complexityIssues`
+1. 计算当前源文件的 SHA-256 hash
+2. 生成缓存 JSON 内容（参考"缓存文件格式"章节）
+3. 确保 `.codex/analysis/` 目录存在
+4. 写入（或覆盖）单文件缓存 `<hash>_<ClassName>.json`
+5. 更新 `manifest.json` 中对应文件的条目
 
-hash 计算示例：
+### 缓存内容提取规则
+
+- `classSummary`：从类注释的"职责"部分提取，压缩为一行
+- `designPattern`：从类注释的"设计"部分提取
+- `dependencies`：从 import 语句中提取项目内依赖（排除标准库和 Android SDK）
+- `methods`：逐个方法提取 name、signature、summary、params、bugs、complexity
+- `openBugs`：从类级别的 bug 标注中提取（不属于某个特定方法的 bug）
+- `complexityIssues`：从类级别的性能标注中提取
+
+### 使用 shell 命令计算 hash
 
 ```bash
+# macOS
 shasum -a 256 <文件路径> | awk '{print $1}'
+
+# Linux
+sha256sum <文件路径> | awk '{print $1}'
 ```
+
+### 更新 manifest.json
+
+读取现有 manifest（如果存在），更新或新增当前文件的条目，然后写回。如果 manifest 不存在，创建新文件。
 
 ## 步骤 8：技能进化
 
-任务完成并验证后，必须调用 `$skill-common` 复盘本技能；没有新增硬证据时允许不修改，但要说明结论。
+任务完成并验证后，必须调用 `$skill-common` 复盘本技能；本技能不重复保存进化门槛和依赖去重策略。
 
 ## 注释质量标准
 
-- 重点解释“为什么这样做”以及“这段代码依赖什么状态”。
-- 优先标出非显而易见的生命周期、线程、契约和业务限制。
-- 注释、风险标记和重命名都要可执行、可验证，避免空话。
-- 除非用户明确要求，只做与当前分析、规范化和安全迁移直接相关的修改。
+好的注释应该：
+- **说明"为什么"而非"做了什么"**：`// 验证用户输入的三位数字` 优于 `// 获取 clickList 的三个元素`
+- **指出非显而易见的逻辑**：对于明显的 getter/setter 可以省略或简化
+- **Bug/复杂度标注要具体可操作**：指出具体位置、触发条件、修复方向、复杂度对比
+- **保持简洁**：方法注释通常控制在 1-10 行，复杂流程按实际需要展开
+- **使用一致的格式**：全项目统一使用本技能定义的注释格式

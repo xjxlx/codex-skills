@@ -21,12 +21,13 @@ description: 将 Android 项目中的 Java 类转换为 Kotlin。用于将 Java 
 5. **必须通过编译验证** `./gradlew :module:compileDebugKotlin` 才能声明成功。
 6. **禁止使用 `!!`（非空断言操作符）** — 始终使用安全替代方案。
 7. **必须处理泛型基类**，使用星投影（`BaseActivity<*>`）当不需要传递类型参数时。
-8. **必须调用 `$code-analyzer`** 统一处理转换后的 Kotlin 类及本次修改调用方的命名规范化、注释补全、Bug 检测和 ViewBinding 收敛。
+8. **必须调用 `$code-normalize`** 规范转换后的 Kotlin 类及本次修改的调用方。
 
 ## 职责路由
 
-- 转换后的成员命名、类注释、关键成员注释、方法注释和 Bug 检测必须交给 `$code-analyzer`，不得在本技能中复制其统一分析流程。
-- `$code-analyzer` 作为本技能的子流程运行时，不得反向重新调用 `$java-to-kotlin`。
+- 转换后的成员命名、类注释和关键成员注释必须交给 `$code-normalize`，不得复制其规范化流程。
+- 用户要求深度逻辑分析、Bug 检测或完整方法注释时，必须额外使用 `$code-analyzer`。
+- `$code-normalize` 作为本技能的子流程运行时，不得反向重新调用 `$java-to-kotlin`。
 
 ## 工作流程
 
@@ -35,7 +36,7 @@ description: 将 Android 项目中的 Java 类转换为 Kotlin。用于将 Java 
 3. **检测 ViewBinding 支持** — 在基类链中查找 ViewBinding 模式
 4. **将 Java 语法转换为 Kotlin** — 遵循项目约定
 5. **删除原始 `.java` 文件**
-6. **转换后分析与规范化** — 调用 `$code-analyzer` 处理转换结果和受影响调用方
+6. **代码规范化** — 调用 `$code-normalize` 处理转换结果和受影响调用方
 7. **编译并验证** — 修复调用方问题直到编译通过
 8. **技能进化** — 按 `$skill-common` 的证据门槛复盘本次转换
 
@@ -254,9 +255,9 @@ override fun initView() {
 
 ## 步骤 6：代码规范化与编译验证
 
-1. 调用 `$code-analyzer` 检查转换后的 Kotlin 类及本次修改的 Java/Kotlin 调用方。
+1. 调用 `$code-normalize` 检查转换后的 Kotlin 类及本次修改的 Java/Kotlin 调用方。
 2. 规范成员命名、补充缺失类注释和关键成员注释，同时保持公共 API、序列化字段和框架契约兼容。
-3. 禁止在此处自行实现 `$code-analyzer` 的统一分析规则，也禁止让其反向调用本技能。
+3. 禁止在此处自行实现 `$code-normalize` 的规则，也禁止让其反向调用本技能。
 4. 运行编译：
 ```bash
 ./gradlew :module:compileDebugKotlin
@@ -280,7 +281,7 @@ override fun initView() {
 - [ ] 有默认参数的方法被 Java 调用时添加了 `@JvmOverloads`
 - [ ] 泛型基类在不需要类型参数时使用了星投影 `*`
 - [ ] 任何地方都没有使用 `!!` 操作符
-- [ ] `$code-analyzer` 已完成命名规范化、注释补全和风险检查，且未遗留不合规成员名称
+- [ ] `$code-normalize` 已完成且未遗留不合规成员名称
 - [ ] 原始 `.java` 文件已删除
 - [ ] `./gradlew :module:compileDebugKotlin` 通过
 
